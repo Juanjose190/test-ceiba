@@ -85,3 +85,19 @@ Las operaciones de iniciar y finalizar alquiler usan transacciones y bloqueo pes
 3. Agregar OpenAPI/Swagger para contrato interactivo.
 4. Publicar eventos de `RentalStarted` y `RentalFinished` para auditoría o facturación externa.
 5. Agregar pruebas de integración con MockMvc/Testcontainers contra PostgreSQL real.
+6. Incorporar idempotencia en operaciones de escritura críticas.
+
+## Feature Futura: Idempotencia
+
+Una mejora relevante para producción sería soportar idempotencia en endpoints como `POST /api/alquileres` y `PUT /api/alquileres/{id}/finalizar`.
+
+El cliente enviaría un header como `Idempotency-Key` en cada operación crítica. La API guardaría esa llave junto con el hash de la solicitud, el estado de procesamiento y la respuesta final. Si el cliente reintenta por timeout, pérdida de conexión o doble envío accidental, el sistema devolvería la misma respuesta anterior en lugar de crear un alquiler duplicado o recalcular una finalización.
+
+Esta decisión mejora:
+
+- Correctitud operativa: evita duplicar alquileres por reintentos.
+- Experiencia del cliente: permite reintentar con seguridad ante fallos temporales.
+- Trazabilidad: deja evidencia de solicitudes repetidas y su resultado.
+- Resiliencia: prepara la API para clientes móviles, redes inestables o integraciones externas.
+
+Trade-off: requiere persistir llaves de idempotencia, definir una ventana de expiración y validar que una misma llave no se reutilice con un cuerpo diferente. Para esta prueba se documenta como evolución porque añade una preocupación transversal que no cambia las reglas de negocio principales.

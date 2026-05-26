@@ -242,3 +242,9 @@ public class RentalService {
     }
 }
 ```
+
+## Evolución Propuesta: Idempotencia
+
+Como mejora futura, los endpoints críticos de escritura podrían aceptar un header `Idempotency-Key`. Esto permitiría que un cliente reintente una solicitud después de un timeout o fallo de red sin riesgo de crear dos alquileres o finalizar dos veces la misma operación.
+
+La API persistiría la llave, el hash del request y la respuesta generada. Si llega el mismo request con la misma llave, se devuelve la respuesta original; si llega la misma llave con un cuerpo diferente, se rechaza como conflicto. Es una mejora típica en APIs de pagos, reservas y operaciones sensibles.
