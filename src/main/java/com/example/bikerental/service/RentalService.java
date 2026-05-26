@@ -8,6 +8,7 @@ import com.example.bikerental.repository.BicycleRepository;
 import com.example.bikerental.repository.RentalRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -31,8 +32,9 @@ public class RentalService {
         this.clock = clock;
     }
 
+    @Transactional
     public Rental startRental(String bicycleCode, String customerName, LocalDateTime startTime, int estimatedDurationHours) {
-        Bicycle bicycle = bicycleRepository.findByCode(bicycleCode.trim().toUpperCase())
+        Bicycle bicycle = bicycleRepository.findByCodeForUpdate(bicycleCode.trim().toUpperCase())
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "No existe una bicicleta con código " + bicycleCode));
 
         if (bicycle.getStatus() != BicycleStatus.DISPONIBLE) {
@@ -49,8 +51,9 @@ public class RentalService {
         return rentalRepository.save(rental);
     }
 
+    @Transactional
     public Rental finishRental(UUID rentalId, LocalDateTime endTime) {
-        Rental rental = rentalRepository.findById(rentalId)
+        Rental rental = rentalRepository.findByIdForUpdate(rentalId)
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "No existe un alquiler con id " + rentalId));
 
         if (rental.isFinished()) {
@@ -66,7 +69,7 @@ public class RentalService {
         RentalCost rentalCost = rentalCostCalculator.calculate(rental.getBicycleType(), actualDuration, rental.getEstimatedDurationHours());
         rental.finish(effectiveEndTime, actualDuration, rentalCost.total(), rentalCost.fined());
 
-        Bicycle bicycle = bicycleRepository.findByCode(rental.getBicycleCode())
+        Bicycle bicycle = bicycleRepository.findByCodeForUpdate(rental.getBicycleCode())
                 .orElseThrow(() -> new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR,
                         "No se encontró la bicicleta asociada al alquiler " + rentalId));
         bicycle.setStatus(BicycleStatus.DISPONIBLE);
@@ -75,11 +78,12 @@ public class RentalService {
         return rentalRepository.save(rental);
     }
 
+    @Transactional(readOnly = true)
     public List<Rental> findHistoryByBicycleCode(String bicycleCode) {
         String normalizedCode = bicycleCode.trim().toUpperCase();
-        if (!bicycleRepository.existsByCode(normalizedCode)) {
+        if (!bicycleRepository.existsById(normalizedCode)) {
             throw new BusinessException(HttpStatus.NOT_FOUND, "No existe una bicicleta con código " + bicycleCode);
         }
-        return rentalRepository.findByBicycleCode(normalizedCode).stream().toList();
+        return rentalRepository.findByBicycleCodeOrderByStartTimeAsc(normalizedCode).stream().toList();
     }
 }

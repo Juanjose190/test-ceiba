@@ -3,38 +3,22 @@ package com.example.bikerental.repository;
 import com.example.bikerental.model.Bicycle;
 import com.example.bikerental.model.BicycleStatus;
 import com.example.bikerental.model.BicycleType;
-import org.springframework.stereotype.Repository;
+import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
-import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
 
-@Repository
-public class BicycleRepository {
+public interface BicycleRepository extends JpaRepository<Bicycle, String> {
 
-    private final ConcurrentHashMap<String, Bicycle> bicycles = new ConcurrentHashMap<>();
+    List<Bicycle> findByStatus(BicycleStatus status);
 
-    public Bicycle save(Bicycle bicycle) {
-        bicycles.put(bicycle.getCode(), bicycle);
-        return bicycle;
-    }
+    List<Bicycle> findByStatusAndType(BicycleStatus status, BicycleType type);
 
-    public Optional<Bicycle> findByCode(String code) {
-        return Optional.ofNullable(bicycles.get(code));
-    }
-
-    public boolean existsByCode(String code) {
-        return bicycles.containsKey(code);
-    }
-
-    public Collection<Bicycle> findAll() {
-        return bicycles.values();
-    }
-
-    public Collection<Bicycle> findAvailable(BicycleType type) {
-        return bicycles.values().stream()
-                .filter(bicycle -> bicycle.getStatus() == BicycleStatus.DISPONIBLE)
-                .filter(bicycle -> type == null || bicycle.getType() == type)
-                .toList();
-    }
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select b from Bicycle b where b.code = :code")
+    Optional<Bicycle> findByCodeForUpdate(@Param("code") String code);
 }

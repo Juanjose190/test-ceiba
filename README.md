@@ -8,9 +8,14 @@ API REST en Spring Boot para registrar bicicletas, iniciar/finalizar alquileres,
 - Spring Boot 3.5
 - Maven
 - Spring Web
+- Spring Data JPA
+- PostgreSQL
 - Jakarta Bean Validation
+- Spring Security
+- Spring Actuator
 - JUnit 5 + AssertJ
-- Repositorios en memoria con `ConcurrentHashMap`
+- H2 para pruebas automatizadas de persistencia
+- Docker + Docker Compose
 
 ## Arquitectura
 
@@ -18,11 +23,11 @@ La solución usa una arquitectura por capas:
 
 - `controller`: expone los endpoints REST y traduce DTOs.
 - `service`: contiene las reglas de negocio y coordina cambios de estado.
-- `repository`: abstrae el almacenamiento en memoria.
+- `repository`: define acceso a datos con Spring Data JPA.
 - `model`: entidades y enums del dominio.
 - `exception`: manejo centralizado de errores JSON con códigos HTTP apropiados.
 
-Elegí almacenamiento en memoria porque el enunciado no exige persistencia y esto mantiene el foco en las reglas de negocio evaluadas. La lógica de tarifas y multas está aislada en `RentalCostCalculator`, lo que facilita probarla sin depender de Spring ni de controladores.
+Elegí una arquitectura por capas con persistencia relacional en PostgreSQL. Aunque el enunciado permite libertad en almacenamiento, Postgres aporta un diferencial razonable: datos persistentes, restricciones por identificadores, portabilidad con Docker y una ruta clara hacia consultas/reportes operativos. La lógica de tarifas y multas está aislada en `RentalCostCalculator`, lo que facilita probarla sin depender de controladores.
 
 La decisión arquitectónica completa está documentada en [docs/architecture.md](docs/architecture.md), incluyendo drivers no funcionales, estilos candidatos y trade-offs.
 
@@ -32,11 +37,13 @@ Drivers principales:
 
 - Correctitud de reglas de negocio: el cálculo de dinero y tiempo está aislado y probado.
 - Mantenibilidad: controladores, servicios, repositorios, DTOs y excepciones están separados.
-- Simplicidad operacional: funciona sin dependencias externas y también con Docker.
+- Persistencia confiable: PostgreSQL evita perder alquileres al reiniciar la aplicación.
+- Consistencia ante concurrencia: las operaciones críticas usan transacciones y bloqueo pesimista para no alquilar dos veces la misma bicicleta.
+- Simplicidad operacional: Docker Compose levanta API y base de datos con una sola orden.
 - Seguridad básica: autenticación HTTP Basic, API stateless y credenciales por variables de entorno.
 - Observabilidad básica: endpoints de health/liveness/readiness con Spring Actuator.
 
-Trade-off principal: se usa almacenamiento en memoria para priorizar claridad y alcance. Si el sistema crece, la capa `repository` permite migrar a PostgreSQL/JPA sin reescribir controladores ni reglas de negocio.
+Trade-off principal: PostgreSQL agrega configuración frente a una solución en memoria, pero mejora el realismo del entregable y permite validar persistencia con JPA sin sobredimensionar hacia microservicios.
 
 ## Supuestos
 
@@ -44,7 +51,7 @@ Trade-off principal: se usa almacenamiento en memoria para priorizar claridad y 
 - Si no se envía `startTime` al iniciar un alquiler, se usa la fecha/hora actual del servidor.
 - Si no se envía `endTime` al finalizar un alquiler, se usa la fecha/hora actual del servidor.
 - La duración estimada se registra en horas enteras y debe ser mayor o igual a 1.
-- Los datos se reinician cada vez que arranca la aplicación.
+- Los datos iniciales se cargan de forma idempotente: si la bicicleta ya existe, no se duplica ni falla el arranque.
 
 ## Datos Iniciales
 
@@ -59,6 +66,14 @@ Al iniciar la aplicación se cargan estas bicicletas:
 | BIC-005 | URBANA | DISPONIBLE |
 
 ## Ejecutar Localmente
+
+Primero levanta PostgreSQL. La forma más sencilla es usar Docker Compose:
+
+```bash
+docker compose up -d postgres
+```
+
+Luego ejecuta la API:
 
 ```bash
 mvn spring-boot:run
@@ -83,6 +98,14 @@ Puedes cambiarlas con variables de entorno:
 APP_SECURITY_USERNAME=operador APP_SECURITY_PASSWORD=secreto mvn spring-boot:run
 ```
 
+Configuración por defecto de base de datos local:
+
+```text
+url: jdbc:postgresql://localhost:5432/bike_rental
+usuario: bike_user
+password: bike_password
+```
+
 ## Ejecutar con Docker
 
 Construir y levantar:
@@ -90,6 +113,11 @@ Construir y levantar:
 ```bash
 docker compose up --build
 ```
+
+Esto levanta dos servicios:
+
+- `postgres`: base de datos PostgreSQL 16.
+- `bike-rental-api`: API Spring Boot conectada a Postgres.
 
 Validar health check:
 
@@ -194,3 +222,23 @@ Los errores se responden en JSON. Ejemplo al intentar alquilar una bicicleta en 
 - Rechazo de alquiler sobre bicicleta no disponible.
 - Cambio de estado al iniciar/finalizar alquiler.
 - Rechazo de finalización doble de alquiler.
+
+Los tests de servicio usan H2 en modo PostgreSQL para validar la integración JPA sin requerir una instancia externa de Postgres en CI o en la máquina del evaluador.
+
+## Decisiones de Inyección de Dependencias
+
+El proyecto usa inyección por constructor. Se evita la inyección por campo con `@Autowired` porque dificulta pruebas, inmutabilidad y lectura de dependencias obligatorias. Ejemplo del estilo usado:
+
+```java
+@Service
+public class RentalService {
+
+    private final BicycleRepository bicycleRepository;
+    private final RentalRepository rentalRepository;
+
+    public RentalService(BicycleRepository bicycleRepository, RentalRepository rentalRepository) {
+        this.bicycleRepository = bicycleRepository;
+        this.rentalRepository = rentalRepository;
+    }
+}
+```

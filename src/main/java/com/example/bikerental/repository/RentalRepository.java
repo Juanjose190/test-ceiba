@@ -1,31 +1,21 @@
 package com.example.bikerental.repository;
 
 import com.example.bikerental.model.Rental;
-import org.springframework.stereotype.Repository;
+import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
-import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
-@Repository
-public class RentalRepository {
+public interface RentalRepository extends JpaRepository<Rental, UUID> {
 
-    private final ConcurrentHashMap<UUID, Rental> rentals = new ConcurrentHashMap<>();
+    List<Rental> findByBicycleCodeOrderByStartTimeAsc(String bicycleCode);
 
-    public Rental save(Rental rental) {
-        rentals.put(rental.getId(), rental);
-        return rental;
-    }
-
-    public Optional<Rental> findById(UUID id) {
-        return Optional.ofNullable(rentals.get(id));
-    }
-
-    public Collection<Rental> findByBicycleCode(String bicycleCode) {
-        return rentals.values().stream()
-                .filter(rental -> rental.getBicycleCode().equals(bicycleCode))
-                .sorted((left, right) -> left.getStartTime().compareTo(right.getStartTime()))
-                .toList();
-    }
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select r from Rental r where r.id = :id")
+    Optional<Rental> findByIdForUpdate(@Param("id") UUID id);
 }

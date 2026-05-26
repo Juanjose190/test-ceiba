@@ -9,27 +9,41 @@ import com.example.bikerental.repository.BicycleRepository;
 import com.example.bikerental.repository.RentalRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpStatus;
+import org.springframework.test.context.TestConstructor;
+import org.springframework.test.context.TestPropertySource;
 
-import java.time.Clock;
-import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+@SpringBootTest
+@TestConstructor(autowireMode = TestConstructor.AutowireMode.ALL)
+@TestPropertySource(properties = {
+        "spring.datasource.url=jdbc:h2:mem:bike_rental_test;MODE=PostgreSQL;DB_CLOSE_DELAY=-1",
+        "spring.datasource.driver-class-name=org.h2.Driver",
+        "spring.datasource.username=sa",
+        "spring.datasource.password=",
+        "spring.jpa.hibernate.ddl-auto=create-drop"
+})
 class RentalServiceTest {
 
-    private BicycleRepository bicycleRepository;
-    private RentalService rentalService;
+    private final BicycleRepository bicycleRepository;
+    private final RentalRepository rentalRepository;
+    private final RentalService rentalService;
+
+    RentalServiceTest(BicycleRepository bicycleRepository, RentalRepository rentalRepository, RentalService rentalService) {
+        this.bicycleRepository = bicycleRepository;
+        this.rentalRepository = rentalRepository;
+        this.rentalService = rentalService;
+    }
 
     @BeforeEach
     void setUp() {
-        bicycleRepository = new BicycleRepository();
-        RentalRepository rentalRepository = new RentalRepository();
-        Clock fixedClock = Clock.fixed(Instant.parse("2026-04-28T10:00:00Z"), ZoneId.of("UTC"));
-        rentalService = new RentalService(bicycleRepository, rentalRepository, new RentalCostCalculator(), fixedClock);
+        rentalRepository.deleteAll();
+        bicycleRepository.deleteAll();
     }
 
     @Test
@@ -50,13 +64,13 @@ class RentalServiceTest {
 
         Rental rental = rentalService.startRental("BIC-001", "Carlos", startTime, 2);
 
-        assertThat(bicycleRepository.findByCode("BIC-001")).get()
+        assertThat(bicycleRepository.findById("BIC-001")).get()
                 .extracting(Bicycle::getStatus)
                 .isEqualTo(BicycleStatus.ALQUILADA);
 
         rentalService.finishRental(rental.getId(), startTime.plusMinutes(130));
 
-        assertThat(bicycleRepository.findByCode("BIC-001")).get()
+        assertThat(bicycleRepository.findById("BIC-001")).get()
                 .extracting(Bicycle::getStatus)
                 .isEqualTo(BicycleStatus.DISPONIBLE);
     }

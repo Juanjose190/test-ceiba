@@ -19,19 +19,21 @@ La empresa necesita reemplazar hojas de cálculo por una API que controle dispon
 | Driver | Prioridad | Impacto arquitectónico |
 | --- | --- | --- |
 | Correctitud de reglas de negocio | Alta | La lógica de cobro debe quedar aislada y cubierta por pruebas unitarias. |
-| Simplicidad operacional | Alta | La app debe ejecutarse localmente y con Docker sin base de datos externa. |
+| Persistencia confiable | Alta | Los alquileres y estados deben sobrevivir reinicios de la aplicación. |
+| Consistencia ante concurrencia | Alta | Dos solicitudes simultáneas no deben alquilar la misma bicicleta disponible. |
+| Simplicidad operacional | Alta | La app debe ejecutarse localmente con Docker Compose, incluyendo base de datos. |
 | Mantenibilidad | Alta | Separación por responsabilidades para modificar reglas sin tocar controladores. |
 | Observabilidad básica | Media | Health checks con Spring Actuator para validar arranque y readiness. |
 | Seguridad básica | Media | Autenticación HTTP Basic, sesiones stateless y credenciales por variables de entorno. |
-| Evolución a persistencia real | Media | Repositorios encapsulan el almacenamiento actual en memoria. |
+| Integridad de datos | Media | JPA/PostgreSQL centralizan identificadores, tipos y transacciones básicas. |
 | Escalabilidad | Baja/Media | El volumen esperado para una prueba técnica no justifica microservicios ni mensajería. |
 
 ## Restricciones y Supuestos
 
 - Spring Boot es obligatorio.
-- El enunciado no exige base de datos ni despliegue en nube.
+- El enunciado no exige base de datos ni despliegue en nube, pero se usa PostgreSQL como diferencial técnico razonable.
 - El plazo es corto, por lo que la arquitectura debe maximizar claridad y confiabilidad antes que infraestructura.
-- Se documenta como supuesto que el almacenamiento es en memoria y se reinicia al levantar la aplicación.
+- Los datos iniciales se cargan de forma idempotente para soportar reinicios con una base persistente.
 
 ## Estilos Candidatos
 
@@ -49,33 +51,37 @@ Se eligió una arquitectura por capas con orientación de dominio:
 
 - `model`: entidades y enums del dominio.
 - `service`: reglas de negocio y casos de uso.
-- `repository`: frontera de acceso a datos.
+- `repository`: frontera de acceso a datos con Spring Data JPA.
 - `controller`: API REST y DTOs.
 - `exception`: traducción uniforme de errores a HTTP.
 - `config`: configuración transversal, seguridad, datos iniciales y reloj.
 
-La decisión busca un equilibrio: suficientemente simple para ser revisada rápido, pero con puntos de extensión claros. La lógica crítica de dinero y tiempo vive en `RentalCostCalculator`, una clase pequeña, pura y testeable. Los repositorios en memoria permiten cumplir el alcance sin atar el dominio a una tecnología de base de datos.
+La decisión busca un equilibrio: suficientemente simple para ser revisada rápido, pero con puntos de extensión claros. La lógica crítica de dinero y tiempo vive en `RentalCostCalculator`, una clase pequeña, pura y testeable. PostgreSQL aporta persistencia real sin introducir la complejidad de una arquitectura distribuida.
+
+Las operaciones de iniciar y finalizar alquiler usan transacciones y bloqueo pesimista (`PESSIMISTIC_WRITE`) sobre los registros relevantes. Esto evita que dos peticiones concurrentes lean la misma bicicleta como disponible y creen alquileres inconsistentes.
 
 ## Trade-offs
 
-- Se sacrifica persistencia real para mantener foco en reglas de negocio y pruebas. El costo de migrar a JPA o MongoDB queda contenido en la capa `repository`.
+- Se acepta la complejidad adicional de PostgreSQL/JPA para ganar persistencia, realismo operativo e integridad básica.
+- Se usa bloqueo pesimista en las operaciones críticas. Esto reduce concurrencia sobre una misma bicicleta, pero favorece consistencia, que es más importante para este caso de negocio.
 - Se usa HTTP Basic por simplicidad. Para producción se migraría a OAuth2/JWT o integración con un proveedor de identidad.
 - Se evita microservicios porque el dominio no tiene límites suficientemente grandes ni carga que justifique complejidad distribuida.
 - Se documentan supuestos explícitos en README para que el evaluador vea criterio ante ambigüedades.
+- Se usa `ddl-auto=update` para facilitar evaluación local. En producción se reemplazaría por migraciones versionadas con Flyway.
 
 ## Atributos de Calidad Cubiertos
 
 - Correctitud: tests unitarios para redondeo, multa, estado y finalización doble.
 - Seguridad básica: API protegida por usuario/contraseña configurable.
 - Observabilidad: `/actuator/health`, liveness y readiness probes.
-- Portabilidad: Dockerfile multi-stage y `docker-compose.yml`.
+- Portabilidad: Dockerfile multi-stage y `docker-compose.yml` con PostgreSQL.
 - Mantenibilidad: servicios enfocados y DTOs separados del modelo.
+- Testabilidad: tests de servicio con H2 en modo PostgreSQL para validar JPA sin depender de infraestructura externa.
 
 ## Posible Evolución
 
-1. Agregar persistencia con PostgreSQL y Spring Data JPA.
-2. Introducir migraciones con Flyway.
-3. Separar interfaces de repositorio como puertos si aparecen nuevas fuentes de datos.
-4. Agregar OpenAPI/Swagger para contrato interactivo.
-5. Publicar eventos de `RentalStarted` y `RentalFinished` para auditoría o facturación externa.
-6. Agregar pruebas de integración con MockMvc/Testcontainers cuando exista base de datos.
+1. Introducir migraciones con Flyway.
+2. Separar interfaces de repositorio como puertos si aparecen nuevas fuentes de datos.
+3. Agregar OpenAPI/Swagger para contrato interactivo.
+4. Publicar eventos de `RentalStarted` y `RentalFinished` para auditoría o facturación externa.
+5. Agregar pruebas de integración con MockMvc/Testcontainers contra PostgreSQL real.

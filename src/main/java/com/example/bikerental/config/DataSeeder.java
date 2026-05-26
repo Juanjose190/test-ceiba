@@ -17,10 +17,16 @@ public class DataSeeder implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        bicycleService.register("BIC-001", BicycleType.URBANA, BicycleStatus.DISPONIBLE);
-        bicycleService.register("BIC-002", BicycleType.MONTANA, BicycleStatus.DISPONIBLE);
-        bicycleService.register("BIC-003", BicycleType.ELECTRICA, BicycleStatus.DISPONIBLE);
-        bicycleService.register("BIC-004", BicycleType.MONTANA, BicycleStatus.EN_MANTENIMIENTO);
-        bicycleService.register("BIC-005", BicycleType.URBANA, BicycleStatus.DISPONIBLE);
+        registerIfMissing("BIC-001", BicycleType.URBANA, BicycleStatus.DISPONIBLE);
+        registerIfMissing("BIC-002", BicycleType.MONTANA, BicycleStatus.DISPONIBLE);
+        registerIfMissing("BIC-003", BicycleType.ELECTRICA, BicycleStatus.DISPONIBLE);
+        registerIfMissing("BIC-004", BicycleType.MONTANA, BicycleStatus.EN_MANTENIMIENTO);
+        registerIfMissing("BIC-005", BicycleType.URBANA, BicycleStatus.DISPONIBLE);
+    }
+
+    private void registerIfMissing(String code, BicycleType type, BicycleStatus status) {
+        if (!bicycleService.existsByCode(code)) {
+            bicycleService.register(code, type, status);
+        }
     }
 }

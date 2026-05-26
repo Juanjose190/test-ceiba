@@ -1,10 +1,34 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: bike-rental-postgres
+    environment:
+      POSTGRES_DB: bike_rental
+      POSTGRES_USER: bike_user
+      POSTGRES_PASSWORD: bike_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bike_user -d bike_rental"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   bike-rental-api:
     build: .
     container_name: bike-rental-api
+    depends_on:
+      postgres:
+        condition: service_healthy
     ports:
       - "8080:8080"
     environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/bike_rental
+      SPRING_DATASOURCE_USERNAME: bike_user
+      SPRING_DATASOURCE_PASSWORD: bike_password
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
       APP_SECURITY_USERNAME: admin
       APP_SECURITY_PASSWORD: admin123
     healthcheck:
@@ -13,3 +37,6 @@ services:
       timeout: 3s
       retries: 3
       start_period: 20s
+
+volumes:
+  postgres-data:
