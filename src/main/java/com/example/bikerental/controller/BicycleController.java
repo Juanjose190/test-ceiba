@@ -7,6 +7,7 @@ import com.example.bikerental.model.BicycleType;
 import com.example.bikerental.service.BicycleService;
 import com.example.bikerental.service.RentalService;
 import jakarta.validation.Valid;
+import org.springframework.http.MediaType;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -20,7 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/bicicletas")
+@RequestMapping(value = "/api/bicicletas", produces = MediaType.APPLICATION_JSON_VALUE + ";charset=UTF-8")
 public class BicycleController {
 
     private final BicycleService bicycleService;

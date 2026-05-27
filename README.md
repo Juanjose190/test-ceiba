@@ -146,6 +146,19 @@ Resumen:
 - El perfil `aws` toma las variables `RDS_HOSTNAME`, `RDS_PORT`, `RDS_DB_NAME`, `RDS_USERNAME` y `RDS_PASSWORD`.
 - `/actuator/health` se usa como health check del ambiente.
 
+API desplegada:
+
+```text
+http://bike-rental-api-prod.eba-feizmgrc.us-east-1.elasticbeanstalk.com
+```
+
+Credenciales de prueba para el evaluador:
+
+```text
+usuario: admin
+password: J5QI3eGTkUEa0a1TVO3UAHDt
+```
+
 Comando de despliegue:
 
 ```bash
