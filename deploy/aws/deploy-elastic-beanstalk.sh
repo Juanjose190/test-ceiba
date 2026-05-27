@@ -8,10 +8,11 @@ cd "$ROOT_DIR"
 : "${APP_NAME:=bike-rental-api}"
 : "${ENV_NAME:=bike-rental-api-prod}"
 : "${DB_NAME:=bike_rental}"
-: "${DB_USER:=bike_user}"
+: "${DB_USER:=bikeuser}"
 : "${DB_INSTANCE_CLASS:=db.t4g.micro}"
 : "${DB_ALLOCATED_STORAGE:=20}"
 : "${APP_SECURITY_USERNAME:=admin}"
+: "${EC2_INSTANCE_PROFILE:=aws-elasticbeanstalk-ec2-role}"
 
 if [[ -z "${DB_PASSWORD:-}" ]]; then
   echo "ERROR: DB_PASSWORD is required. Export it before running this script." >&2
@@ -27,7 +28,7 @@ ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text --region
 BUCKET="${ARTIFACT_BUCKET:-${APP_NAME}-${ACCOUNT_ID}-${AWS_REGION}-eb-artifacts}"
 VERSION_LABEL="${VERSION_LABEL:-$(date +%Y%m%d%H%M%S)-$(git rev-parse --short HEAD 2>/dev/null || echo local)}"
 ZIP_FILE="target/${APP_NAME}-${VERSION_LABEL}.zip"
-PLATFORM_BRANCH="${PLATFORM_BRANCH:-Docker running on 64bit Amazon Linux 2023}"
+SOLUTION_STACK_NAME="${SOLUTION_STACK_NAME:-}"
 
 echo "Packaging application version ${VERSION_LABEL}..."
 mkdir -p target
@@ -66,14 +67,15 @@ aws elasticbeanstalk create-application-version \
   --source-bundle "S3Bucket=${BUCKET},S3Key=${APP_NAME}/${VERSION_LABEL}.zip" \
   --region "$AWS_REGION" >/dev/null
 
-PLATFORM_ARN="$(aws elasticbeanstalk list-platform-versions \
-  --filters "Type=PlatformBranchName,Operator==,Values=${PLATFORM_BRANCH}" "Type=PlatformStatus,Operator==,Values=Ready" \
-  --query 'PlatformSummaryList[-1].PlatformArn' \
-  --output text \
-  --region "$AWS_REGION")"
+if [[ -z "$SOLUTION_STACK_NAME" ]]; then
+  SOLUTION_STACK_NAME="$(aws elasticbeanstalk list-available-solution-stacks \
+    --query "SolutionStacks[?contains(@, 'Amazon Linux 2023')]|[?contains(@, 'running Docker')]|[-1]" \
+    --output text \
+    --region "$AWS_REGION")"
+fi
 
-if [[ "$PLATFORM_ARN" == "None" || -z "$PLATFORM_ARN" ]]; then
-  echo "ERROR: Could not find a Ready Elastic Beanstalk platform for branch: ${PLATFORM_BRANCH}" >&2
+if [[ "$SOLUTION_STACK_NAME" == "None" || -z "$SOLUTION_STACK_NAME" ]]; then
+  echo "ERROR: Could not find an Elastic Beanstalk Docker solution stack for Amazon Linux 2023." >&2
   exit 1
 fi
 
@@ -99,6 +101,11 @@ cat > "$OPTION_SETTINGS_FILE" <<JSON
     "Namespace": "aws:elasticbeanstalk:environment:process:default",
     "OptionName": "HealthCheckPath",
     "Value": "/actuator/health"
+  },
+  {
+    "Namespace": "aws:autoscaling:launchconfiguration",
+    "OptionName": "IamInstanceProfile",
+    "Value": "${EC2_INSTANCE_PROFILE}"
   },
   {
     "Namespace": "aws:rds:dbinstance",
@@ -163,7 +170,7 @@ else
     --application-name "$APP_NAME" \
     --environment-name "$ENV_NAME" \
     --version-label "$VERSION_LABEL" \
-    --platform-arn "$PLATFORM_ARN" \
+    --solution-stack-name "$SOLUTION_STACK_NAME" \
     --option-settings "file://${OPTION_SETTINGS_FILE}" \
     --region "$AWS_REGION" >/dev/null
 fi
