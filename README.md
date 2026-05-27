@@ -131,6 +131,36 @@ Detener:
 docker compose down
 ```
 
+## Despliegue en AWS
+
+El proyecto incluye una ruta de despliegue en AWS usando Elastic Beanstalk + RDS PostgreSQL. La guía y los scripts están en:
+
+```text
+deploy/aws/
+```
+
+Resumen:
+
+- La API se despliega como contenedor Docker en Elastic Beanstalk.
+- PostgreSQL se provisiona con RDS.
+- El perfil `aws` toma las variables `RDS_HOSTNAME`, `RDS_PORT`, `RDS_DB_NAME`, `RDS_USERNAME` y `RDS_PASSWORD`.
+- `/actuator/health` se usa como health check del ambiente.
+
+Comando de despliegue:
+
+```bash
+export AWS_REGION=us-east-1
+export DB_PASSWORD='change-me-with-a-strong-password'
+export APP_SECURITY_PASSWORD='change-me-too'
+bash deploy/aws/deploy-elastic-beanstalk.sh
+```
+
+Para evitar costos después de la prueba:
+
+```bash
+bash deploy/aws/destroy-elastic-beanstalk.sh
+```
+
 ## Ejecutar Tests
 
 ```bash
