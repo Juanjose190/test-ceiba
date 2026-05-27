@@ -214,7 +214,14 @@ Los errores se responden en JSON. Ejemplo al intentar alquilar una bicicleta en 
 }
 ```
 
-## Reglas Probadas
+## Pruebas Automatizadas
+
+El proyecto incluye dos niveles de pruebas:
+
+- Tests unitarios puros para `RentalCostCalculator`, sin Spring ni base de datos.
+- Tests de integración del servicio con persistencia para `RentalService`, usando Spring Boot + JPA + H2 en modo PostgreSQL.
+
+Reglas cubiertas:
 
 - Redondeo al alza del tiempo real de uso.
 - No redondear cuando el uso cae exactamente en una hora completa.
@@ -222,8 +229,9 @@ Los errores se responden en JSON. Ejemplo al intentar alquilar una bicicleta en 
 - Rechazo de alquiler sobre bicicleta no disponible.
 - Cambio de estado al iniciar/finalizar alquiler.
 - Rechazo de finalización doble de alquiler.
+- Persistencia del costo total y marca de multa al finalizar tarde.
 
-Los tests de servicio usan H2 en modo PostgreSQL para validar la integración JPA sin requerir una instancia externa de Postgres en CI o en la máquina del evaluador.
+Los tests de integración usan el perfil `test`, configurado en `src/test/resources/application-test.properties`, para validar JPA sin requerir una instancia externa de Postgres en CI o en la máquina del evaluador.
 
 ## Decisiones de Inyección de Dependencias
 

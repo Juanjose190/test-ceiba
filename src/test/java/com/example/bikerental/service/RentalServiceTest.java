@@ -11,8 +11,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpStatus;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestConstructor;
-import org.springframework.test.context.TestPropertySource;
+
+import java.math.BigDecimal;
 
 import java.time.LocalDateTime;
 
@@ -20,14 +22,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest
+@ActiveProfiles("test")
 @TestConstructor(autowireMode = TestConstructor.AutowireMode.ALL)
-@TestPropertySource(properties = {
-        "spring.datasource.url=jdbc:h2:mem:bike_rental_test;MODE=PostgreSQL;DB_CLOSE_DELAY=-1",
-        "spring.datasource.driver-class-name=org.h2.Driver",
-        "spring.datasource.username=sa",
-        "spring.datasource.password=",
-        "spring.jpa.hibernate.ddl-auto=create-drop"
-})
 class RentalServiceTest {
 
     private final BicycleRepository bicycleRepository;
@@ -87,5 +83,18 @@ class RentalServiceTest {
                 .hasMessageContaining("ya fue finalizado")
                 .extracting("status")
                 .isEqualTo(HttpStatus.CONFLICT);
+    }
+
+    @Test
+    void calculatesFineWhenRentalIsReturnedLate() {
+        bicycleRepository.save(new Bicycle("BIC-003", BicycleType.MONTANA, BicycleStatus.DISPONIBLE));
+        LocalDateTime startTime = LocalDateTime.of(2026, 4, 28, 8, 0);
+        Rental rental = rentalService.startRental("BIC-003", "Laura", startTime, 2);
+
+        Rental finished = rentalService.finishRental(rental.getId(), startTime.plusMinutes(200));
+
+        assertThat(finished.isFinished()).isTrue();
+        assertThat(finished.isFined()).isTrue();
+        assertThat(finished.getTotalCost()).isEqualByComparingTo(new BigDecimal("25000.00"));
     }
 }
