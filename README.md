@@ -29,7 +29,7 @@ La solución usa una arquitectura por capas:
 
 Elegí una arquitectura por capas con persistencia relacional en PostgreSQL. Aunque el enunciado permite libertad en almacenamiento, Postgres aporta un diferencial razonable: datos persistentes, restricciones por identificadores, portabilidad con Docker y una ruta clara hacia consultas/reportes operativos. La lógica de tarifas y multas está aislada en `RentalCostCalculator`, lo que facilita probarla sin depender de controladores.
 
-La decisión arquitectónica completa está documentada en `docs/architecture.md`, incluyendo drivers no funcionales, estilos candidatos y trade-offs.
+La decisión arquitectónica completa está documentada en [`docs/architecture.md`](docs/architecture.md), incluyendo drivers no funcionales, estilos candidatos y trade-offs.
 
 ## Drivers y Trade-offs
 
