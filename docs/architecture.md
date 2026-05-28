@@ -40,7 +40,7 @@ La empresa necesita reemplazar hojas de cálculo por una API que controle dispon
 | Estilo | Ventajas | Costos / trade-offs | Encaje |
 | --- | --- | --- | --- |
 | Capas clásicas | Simple, familiar para Spring, rápida de revisar. | Puede mezclar dominio con aplicación si se descuida. | Bueno para el tamaño actual. |
-| Hexagonal / Puertos y Adaptadores | Aísla dominio e infraestructura, facilita cambiar persistencia. | Más clases/interfaces para un dominio pequeño. | Bueno como evolución si se agrega BD. |
+| Hexagonal / Puertos y Adaptadores | Aísla dominio e infraestructura, facilita cambiar persistencia. | Más clases/interfaces para un dominio pequeño. |Bueno como evolución si crece el dominio o aparecen nuevas fuentes de datos. |
 | Clean Architecture estricta | Alta independencia del framework. | Sobredimensionada para una API de prueba pequeña. | Parcial, no estricta. |
 | Microservicios | Escalado independiente y ownership por dominio. | Complejidad operativa, red, consistencia distribuida, despliegue. | Descartado. |
 | Event-driven | Útil para auditoría y procesos asíncronos. | Añade broker, contratos y eventual consistency. | Futuro posible, no necesario ahora. |
