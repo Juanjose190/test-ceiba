@@ -34,34 +34,6 @@ En producción la base de datos debería tener ciclo de vida independiente, subr
 privadas, Secrets Manager y migraciones con Flyway o Liquibase. Acá está acoplada
 a Beanstalk por simplicidad.
 
-## Reproducir el despliegue
-
-Requiere AWS CLI configurado con un usuario IAM o SSO con permisos suficientes
-(no usar credenciales root).
-
-```bash
-# Verificar sesión
-aws sts get-caller-identity
-
-# Exportar secretos
-export AWS_REGION=us-east-1
-export DB_PASSWORD='tu-password-para-rds'
-export APP_SECURITY_PASSWORD='tu-password-para-la-api'
-
-# Desplegar
-bash deploy/aws/deploy-elastic-beanstalk.sh
-```
-
-Una vez listo, obtener la URL:
-
-```bash
-aws elasticbeanstalk describe-environments \
-  --application-name bike-rental-api \
-  --environment-names bike-rental-api-prod \
-  --query 'Environments[0].CNAME' \
-  --output text
-```
-
 ## Destruir
 
 ```bash
