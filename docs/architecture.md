@@ -64,7 +64,7 @@ Las operaciones de iniciar y finalizar alquiler usan transacciones y bloqueo pes
 
 - Se acepta la complejidad adicional de PostgreSQL/JPA para ganar persistencia, realismo operativo e integridad básica.
 - Se usa bloqueo pesimista en las operaciones críticas. Esto reduce concurrencia sobre una misma bicicleta, pero favorece consistencia, que es más importante para este caso de negocio.
-- Se usa HTTP Basic por simplicidad. Para producción se migraría a OAuth2/JWT o integración con un proveedor de identidad.
+- Se usa HTTP Basic por simplicidad. Para producción se migraría a OAuth2/JWT o integración con un proveedor de identidad. No pretende ser seguridad productiva completa, sino control mínimo de acceso para la prueba.
 - Se evita microservicios porque el dominio no tiene límites suficientemente grandes ni carga que justifique complejidad distribuida.
 - Se documentan supuestos explícitos en README para que el evaluador vea criterio ante ambigüedades.
 - Se usa `ddl-auto=update` para facilitar evaluación local. En producción se reemplazaría por migraciones versionadas con Flyway.
